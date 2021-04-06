@@ -1,6 +1,5 @@
 package _02_Chat_Application;
 
-import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -36,10 +35,13 @@ public class Client implements ActionListener {
 
 	final int WIDTH = 400;
 	final int HEIGHT = 600;
+	
+	String name;
 
-	Client(String ip, int port) {
+	Client(String ip, int port, String name) {
 		this.ip = ip;
 		this.port = port;
+		this.name = name;
 		setup();
 	}
 
@@ -89,7 +91,7 @@ public class Client implements ActionListener {
 		while (connection.isConnected()) {
 			try {
 				String message = dis.readUTF();
-				chatLog.setText(chatLog.getText() + "\n\n  Host: " + message);
+				chatLog.setText(chatLog.getText() + message);
 			} catch (IOException e) {
 				e.printStackTrace();
 				if (!connection.isClosed()) {
@@ -117,8 +119,8 @@ public class Client implements ActionListener {
 		if (ae.getSource() == sendMessageButton) {
 			String message = JOptionPane.showInputDialog("Send Message");
 			try {
-				dos.writeUTF(message);
-				chatLog.setText(chatLog.getText() + "\n\n  Client(You): " + message);
+				dos.writeUTF("\n\n  " + name + "(Client): " + message);
+				chatLog.setText(chatLog.getText() + "\n\n  " + name + "(Client | You): " + message);
 				dos.flush();
 			} catch (IOException e) {
 				e.printStackTrace();

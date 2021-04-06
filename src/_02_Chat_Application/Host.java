@@ -3,14 +3,13 @@ package _02_Chat_Application;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -22,15 +21,15 @@ import javax.swing.JTextArea;
 import javax.swing.ScrollPaneConstants;
 
 public class Host implements ActionListener {
-	private int port;
 	final int SERVER_TIMEOUT = 60000;
-	ServerSocket serverSocket;
-	Socket connection;
-	DataInputStream dis;
-	DataOutputStream dos;
+	ArrayList<ServerSocket> serverSockets;
+	ArrayList<Socket> connections;
+	ArrayList<DataOutputStream> dos = new ArrayList<DataOutputStream>();
+	ArrayList<HostMessageReceiver> hmr = new ArrayList<HostMessageReceiver>();
 
 	JFrame window;
 	JPanel panel;
+	JButton portsButton;
 	JButton sendMessageButton;
 	JButton exitButton;
 	JLabel info;
@@ -40,28 +39,34 @@ public class Host implements ActionListener {
 	final int WIDTH = 400;
 	final int HEIGHT = 600;
 
-	Host(int port) {
-		this.port = port;
+	String name;
+
+	Host(String name) {
+		this.name = name;
 		setup();
 	}
 
 	void setup() {
 		try {
-			serverSocket = new ServerSocket(port);
+			serverSockets = new ArrayList<ServerSocket>();
+			connections = new ArrayList<Socket>();
 			window = new JFrame("Chat (Host | Waiting for Connection)");
 			panel = new JPanel();
+			portsButton = new JButton("Ports");
 			sendMessageButton = new JButton("Send Message");
 			exitButton = new JButton("Exit");
 			info = new JLabel();
 			chatLog = new JTextArea((HEIGHT - 20) / 18, (WIDTH - 40) / 12);
 			scrollPane = new JScrollPane(chatLog);
 
+			portsButton.addActionListener(this);
 			sendMessageButton.addActionListener(this);
 			exitButton.addActionListener(this);
-			info.setText("IP: " + getIPAddress() + " | Port: " + getPort());
+			info.setText("IP: " + getIPAddress());
 			scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 			chatLog.setEditable(false);
 			panel.add(info);
+			panel.add(portsButton);
 			panel.add(sendMessageButton);
 			panel.add(exitButton);
 			panel.add(scrollPane);
@@ -70,42 +75,57 @@ public class Host implements ActionListener {
 			window.setResizable(false);
 			window.setVisible(true);
 
-			serverSocket.setSoTimeout(SERVER_TIMEOUT);
-			connection = serverSocket.accept();
-			window.setTitle("Chat (Host | Connected)");
+			waitForConnection();
 
-			dis = new DataInputStream(connection.getInputStream());
-			dos = new DataOutputStream(connection.getOutputStream());
-
-		} catch (SocketTimeoutException e) {
-			try {
-				serverSocket.close();
-			} catch (IOException e1) {
-				e1.printStackTrace();
-			}
-			window.dispose();
-			JOptionPane.showMessageDialog(null, "Error: Socket Timeout Exception");
 		} catch (IllegalArgumentException e) {
 			window.dispose();
 			JOptionPane.showMessageDialog(null, "Error: Invalid Port Number");
 		} catch (IOException e) {
 			e.printStackTrace();
-			JOptionPane.showMessageDialog(null, "Connection Waiting Cancelled");
+			if (connections.size() == 0) {
+				JOptionPane.showMessageDialog(null, "Connection Waiting Cancelled");
+			}
 		}
-		
-		while (connection.isConnected()) {
-			System.out.println("huh");
+	}
+
+	public void waitForConnection() throws IOException {
+		while (true) {
+			System.out.println(connections.size());
+			if (connections.size() < 4) {
+				ServerSocket newServerSocket = new ServerSocket(0);
+				serverSockets.add(newServerSocket);
+				Socket newConnection = newServerSocket.accept();
+				window.setTitle("Chat (Host | Connected)");
+				connections.add(newConnection);
+				dos.add(new DataOutputStream(connections.get(connections.size() - 1).getOutputStream()));
+				hmr.add(new HostMessageReceiver(this, newServerSocket, newConnection, chatLog, connections.size() - 1));
+				new Thread(() -> {
+					hmr.get(connections.size() - 1).run();
+				}).start();
+			}
+		}
+	}
+
+	public void forwardMessage(String message, Socket skip) {
+		for (int i = 0; i < connections.size(); i++) {
 			try {
-				String message = dis.readUTF();
-				chatLog.setText(chatLog.getText() + "\n\n  Client: " + message);
+				if(!connections.get(i).equals(skip)) {
+					dos.get(i).writeUTF(message);
+				}
 			} catch (IOException e) {
 				e.printStackTrace();
-				if (!connection.isClosed()) {
-					JOptionPane.showMessageDialog(null, "Lost Connection to Client. Closing Connection...");
-					closeServer();
-				}
-				break;
+				JOptionPane.showMessageDialog(null, "Error: IO Exception");
 			}
+		}
+	}
+
+	public void removeConnection(int index) {
+		serverSockets.remove(index);
+		connections.remove(index);
+		dos.remove(index);
+		hmr.remove(index);
+		for (int i = index; i < connections.size(); i++) {
+			hmr.get(i).setIndex(hmr.get(i).getIndex() - 1);
 		}
 	}
 
@@ -119,16 +139,22 @@ public class Host implements ActionListener {
 		}
 	}
 
-	public int getPort() {
-		return serverSocket.getLocalPort();
+	public String getPorts() {
+		String ports = "Max Clients: 4\n\nAvailable Ports: ";
+		for (int i = 0; i < serverSockets.size(); i++) {
+			ports += ("\n" + serverSockets.get(i).getLocalPort());
+		}
+		return ports;
 	}
 
 	void closeServer() {
 		try {
-			if (connection != null) {
-				connection.close();
+			for (int i = 0; i < connections.size(); i++) {
+				if (connections.get(i) != null) {
+					connections.get(i).close();
+					serverSockets.get(i).close();
+				}
 			}
-			serverSocket.close();
 		} catch (IOException e) {
 			e.printStackTrace();
 			JOptionPane.showMessageDialog(null, "Error: Problem Closing Socket");
@@ -139,12 +165,14 @@ public class Host implements ActionListener {
 	@Override
 	public void actionPerformed(ActionEvent ae) {
 		if (ae.getSource() == sendMessageButton) {
-			if (connection != null) {
+			if (!connections.isEmpty()) {
 				String message = JOptionPane.showInputDialog("Send Message");
 				try {
-					dos.writeUTF(message);
-					chatLog.setText(chatLog.getText() + "\n\n  Host(You): " + message);
-					dos.flush();
+					for (int i = 0; i < connections.size(); i++) {
+						dos.get(i).writeUTF("\n\n  " + name + "(Host): " + message);
+						dos.get(i).flush();
+					}
+					chatLog.setText(chatLog.getText() + "\n\n  " + name + "(Host | You): " + message);
 				} catch (IOException e) {
 					e.printStackTrace();
 					JOptionPane.showMessageDialog(null, "Error: IO Exception while Sending Message");
@@ -154,6 +182,8 @@ public class Host implements ActionListener {
 			}
 		} else if (ae.getSource() == exitButton) {
 			closeServer();
+		} else if (ae.getSource() == portsButton) {
+			JOptionPane.showMessageDialog(null, getPorts());
 		}
 	}
 }

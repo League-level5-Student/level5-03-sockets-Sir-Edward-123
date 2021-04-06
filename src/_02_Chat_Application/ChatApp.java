@@ -52,7 +52,7 @@ public class ChatApp implements ActionListener {
 	public void actionPerformed(ActionEvent ae) {
 		if(ae.getSource() == hostButton) {
 			Thread hostThread = new Thread(() -> {
-				new Host(0);
+				new Host(JOptionPane.showInputDialog("Enter your name"));
 			});
 			hostThread.start();
 		} else if(ae.getSource() == clientButton) {
@@ -60,7 +60,7 @@ public class ChatApp implements ActionListener {
 				try {
 					String ip = JOptionPane.showInputDialog("Enter IP address of host");
 					int port = Integer.parseInt(JOptionPane.showInputDialog("Enter port to connect to"));
-					new Client(ip, port);
+					new Client(ip, port, JOptionPane.showInputDialog("Enter your name"));
 				} catch (Exception e) {
 					JOptionPane.showMessageDialog(null, "Error: Invalid IP/Port");
 				}	
