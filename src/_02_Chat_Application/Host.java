@@ -3,6 +3,8 @@ package _02_Chat_Application;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -18,9 +20,10 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
 
-public class Host implements ActionListener {
+public class Host implements ActionListener, KeyListener {
 	final int SERVER_TIMEOUT = 60000;
 	ArrayList<ServerSocket> serverSockets;
 	ArrayList<Socket> connections;
@@ -35,7 +38,8 @@ public class Host implements ActionListener {
 	JLabel info;
 	JTextArea chatLog;
 	JScrollPane scrollPane;
-
+	JTextField messageInput;
+	
 	final int WIDTH = 400;
 	final int HEIGHT = 600;
 
@@ -53,23 +57,26 @@ public class Host implements ActionListener {
 			window = new JFrame("Chat (Host | Waiting for Connection)");
 			panel = new JPanel();
 			portsButton = new JButton("Ports");
-			sendMessageButton = new JButton("Send Message");
+			sendMessageButton = new JButton("Send");
 			exitButton = new JButton("Exit");
 			info = new JLabel();
-			chatLog = new JTextArea((HEIGHT - 20) / 18, (WIDTH - 40) / 12);
+			chatLog = new JTextArea((HEIGHT - 60) / 18, (WIDTH - 40) / 12);
 			scrollPane = new JScrollPane(chatLog);
+			messageInput = new JTextField((WIDTH - 90) / 12);
 
 			portsButton.addActionListener(this);
 			sendMessageButton.addActionListener(this);
 			exitButton.addActionListener(this);
-			info.setText("IP: " + getIPAddress());
+			messageInput.addKeyListener(this);
+			info.setText("Name: " + name + " | IP: " + getIPAddress());
 			scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 			chatLog.setEditable(false);
 			panel.add(info);
 			panel.add(portsButton);
-			panel.add(sendMessageButton);
 			panel.add(exitButton);
 			panel.add(scrollPane);
+			panel.add(messageInput);
+			panel.add(sendMessageButton);
 			window.add(panel);
 			window.setSize(new Dimension(WIDTH, HEIGHT));
 			window.setResizable(false);
@@ -90,7 +97,6 @@ public class Host implements ActionListener {
 
 	public void waitForConnection() throws IOException {
 		while (true) {
-			System.out.println(connections.size());
 			if (connections.size() < 4) {
 				ServerSocket newServerSocket = new ServerSocket(0);
 				serverSockets.add(newServerSocket);
@@ -161,29 +167,53 @@ public class Host implements ActionListener {
 		}
 		window.dispose();
 	}
+	
+	void sendMessage() {
+		if (!connections.isEmpty()) {
+			String message = messageInput.getText();
+			messageInput.setText("");
+			try {
+				for (int i = 0; i < connections.size(); i++) {
+					dos.get(i).writeUTF("\n\n  " + name + "(Host): " + message);
+					dos.get(i).flush();
+				}
+				chatLog.setText(chatLog.getText() + "\n\n  " + name + "(Host | You): " + message);
+			} catch (IOException e) {
+				e.printStackTrace();
+				JOptionPane.showMessageDialog(null, "Error: IO Exception while Sending Message");
+			}
+		} else {
+			JOptionPane.showMessageDialog(null, "No Client Connection");
+		}
+	}
 
 	@Override
 	public void actionPerformed(ActionEvent ae) {
 		if (ae.getSource() == sendMessageButton) {
-			if (!connections.isEmpty()) {
-				String message = JOptionPane.showInputDialog("Send Message");
-				try {
-					for (int i = 0; i < connections.size(); i++) {
-						dos.get(i).writeUTF("\n\n  " + name + "(Host): " + message);
-						dos.get(i).flush();
-					}
-					chatLog.setText(chatLog.getText() + "\n\n  " + name + "(Host | You): " + message);
-				} catch (IOException e) {
-					e.printStackTrace();
-					JOptionPane.showMessageDialog(null, "Error: IO Exception while Sending Message");
-				}
-			} else {
-				JOptionPane.showMessageDialog(null, "No Client Connection");
-			}
+			sendMessage();
 		} else if (ae.getSource() == exitButton) {
 			closeServer();
 		} else if (ae.getSource() == portsButton) {
 			JOptionPane.showMessageDialog(null, getPorts());
 		}
+	}
+
+	@Override
+	public void keyPressed(KeyEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void keyReleased(KeyEvent ke) {
+		if(ke.getKeyCode() == 10) {
+			sendMessage();
+		}
+	}
+
+	@Override
+	public void keyTyped(KeyEvent arg0) {
+		// TODO Auto-generated method stub
+		
 	}
 }

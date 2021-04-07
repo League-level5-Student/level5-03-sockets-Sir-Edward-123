@@ -3,6 +3,8 @@ package _02_Chat_Application;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.KeyEvent;
+import java.awt.event.KeyListener;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -16,9 +18,10 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 import javax.swing.ScrollPaneConstants;
 
-public class Client implements ActionListener {
+public class Client implements ActionListener, KeyListener {
 	String ip;
 	int port;
 	Socket connection;
@@ -32,6 +35,7 @@ public class Client implements ActionListener {
 	JLabel info;
 	JTextArea chatLog;
 	JScrollPane scrollPane;
+	JTextField messageInput;
 
 	final int WIDTH = 400;
 	final int HEIGHT = 600;
@@ -51,21 +55,24 @@ public class Client implements ActionListener {
 
 			window = new JFrame("Chat (Client)");
 			panel = new JPanel();
-			sendMessageButton = new JButton("Send Message");
+			sendMessageButton = new JButton("Send");
 			exitButton = new JButton("Exit");
 			info = new JLabel();
-			chatLog = new JTextArea((HEIGHT - 20) / 18, (WIDTH - 40) / 12);
+			chatLog = new JTextArea((HEIGHT - 60) / 18, (WIDTH - 40) / 12);
 			scrollPane = new JScrollPane(chatLog);
+			messageInput = new JTextField((WIDTH - 90) / 12);
 
 			sendMessageButton.addActionListener(this);
 			exitButton.addActionListener(this);
-			info.setText("IP: " + ip + " | Port: " + port);
+			messageInput.addKeyListener(this);
+			info.setText("Name: " + name + " | Host IP: " + ip + " | Port: " + port);
 			chatLog.setEditable(false);
 			scrollPane.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_ALWAYS);
 			panel.add(info);
-			panel.add(sendMessageButton);
 			panel.add(exitButton);
 			panel.add(scrollPane);
+			panel.add(messageInput);
+			panel.add(sendMessageButton);
 			window.add(panel);
 			window.setSize(new Dimension(WIDTH, HEIGHT));
 			window.setResizable(false);
@@ -113,21 +120,45 @@ public class Client implements ActionListener {
 		}
 		window.dispose();
 	}
+	
+	void sendMessage() {
+		String message = messageInput.getText();
+		messageInput.setText("");
+		try {
+			dos.writeUTF("\n\n  " + name + "(Client): " + message);
+			chatLog.setText(chatLog.getText() + "\n\n  " + name + "(Client | You): " + message);
+			dos.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+			JOptionPane.showMessageDialog(null, "Error: IO Exception while Sending Message");
+		}
+	}
 
 	@Override
 	public void actionPerformed(ActionEvent ae) {
 		if (ae.getSource() == sendMessageButton) {
-			String message = JOptionPane.showInputDialog("Send Message");
-			try {
-				dos.writeUTF("\n\n  " + name + "(Client): " + message);
-				chatLog.setText(chatLog.getText() + "\n\n  " + name + "(Client | You): " + message);
-				dos.flush();
-			} catch (IOException e) {
-				e.printStackTrace();
-				JOptionPane.showMessageDialog(null, "Error: IO Exception while Sending Message");
-			}
+			sendMessage();
 		} else if (ae.getSource() == exitButton) {
 			closeConnection();
 		}
+	}
+
+	@Override
+	public void keyPressed(KeyEvent arg0) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	@Override
+	public void keyReleased(KeyEvent ke) {
+		if(ke.getKeyCode() == 10) {
+			sendMessage();
+		}
+	}
+
+	@Override
+	public void keyTyped(KeyEvent arg0) {
+		// TODO Auto-generated method stub
+		
 	}
 }
