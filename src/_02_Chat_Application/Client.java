@@ -10,6 +10,8 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -36,6 +38,7 @@ public class Client implements ActionListener, KeyListener {
 	JTextArea chatLog;
 	JScrollPane scrollPane;
 	JTextField messageInput;
+	DateTimeFormatter dtf;
 
 	final int WIDTH = 400;
 	final int HEIGHT = 600;
@@ -61,6 +64,7 @@ public class Client implements ActionListener, KeyListener {
 			chatLog = new JTextArea((HEIGHT - 60) / 18, (WIDTH - 40) / 12);
 			scrollPane = new JScrollPane(chatLog);
 			messageInput = new JTextField((WIDTH - 90) / 12);
+			dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 
 			sendMessageButton.addActionListener(this);
 			exitButton.addActionListener(this);
@@ -125,8 +129,8 @@ public class Client implements ActionListener, KeyListener {
 		String message = messageInput.getText();
 		messageInput.setText("");
 		try {
-			dos.writeUTF("\n\n  " + name + "(Client): " + message);
-			chatLog.setText(chatLog.getText() + "\n\n  " + name + "(Client | You): " + message);
+			dos.writeUTF("\n\n  [" + dtf.format(LocalDateTime.now()) + "]\n  " + name + " (Client): " + message);
+			chatLog.setText(chatLog.getText() + "\n\n  [" + dtf.format(LocalDateTime.now()) + "]\n  " + name + " (Client | You): " + message);
 			dos.flush();
 		} catch (IOException e) {
 			e.printStackTrace();

@@ -11,6 +11,8 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 
 import javax.swing.JButton;
@@ -39,6 +41,7 @@ public class Host implements ActionListener, KeyListener {
 	JTextArea chatLog;
 	JScrollPane scrollPane;
 	JTextField messageInput;
+	DateTimeFormatter dtf;
 	
 	final int WIDTH = 400;
 	final int HEIGHT = 600;
@@ -63,6 +66,7 @@ public class Host implements ActionListener, KeyListener {
 			chatLog = new JTextArea((HEIGHT - 60) / 18, (WIDTH - 40) / 12);
 			scrollPane = new JScrollPane(chatLog);
 			messageInput = new JTextField((WIDTH - 90) / 12);
+			dtf = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 
 			portsButton.addActionListener(this);
 			sendMessageButton.addActionListener(this);
@@ -174,10 +178,10 @@ public class Host implements ActionListener, KeyListener {
 			messageInput.setText("");
 			try {
 				for (int i = 0; i < connections.size(); i++) {
-					dos.get(i).writeUTF("\n\n  " + name + "(Host): " + message);
+					dos.get(i).writeUTF("\n\n  [" + dtf.format(LocalDateTime.now()) + "]\n  "  + name + " (Host): " + message);
 					dos.get(i).flush();
 				}
-				chatLog.setText(chatLog.getText() + "\n\n  " + name + "(Host | You): " + message);
+				chatLog.setText(chatLog.getText() + "\n\n  " + dtf.format(LocalDateTime.now()) + "]\n  " + name + " (Host | You): " + message);
 			} catch (IOException e) {
 				e.printStackTrace();
 				JOptionPane.showMessageDialog(null, "Error: IO Exception while Sending Message");
